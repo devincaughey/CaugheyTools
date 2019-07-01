@@ -1,5 +1,5 @@
-po_to_name <- function (name, dta = CaugheyTools::states) {
-    name <- as.character(name)
-    po_abbrevs <- dta$POAbrv[match(name, dta$Name)]
-    return(po_abbrevs)
+po_to_name <- function (po_abbr, dta = CaugheyTools::states) {
+    po_abbr <- as.character(po_abbr)
+    names <- dta$Name[match(po_abbr, dta$POAbrv)]
+    return(names)
 }
