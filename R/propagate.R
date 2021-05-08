@@ -1,21 +1,25 @@
-#' Propagate uncertainty through the method of composition
+#' @title Propagate uncertainty through the method of composition
 #' 
-#'  This function propagates uncertainty from variables measured with error by
-#'  estimating a model on many samples of a dataset and then sampling from the
-#'  distribution of the model parameters, a procedure known as the "method of
-#'  composition" (Tanner 1996, 52; Treier and Jackman 2008).
+#' @description This function propagates uncertainty from variables measured
+#'   with error by estimating a model on many samples of a dataset and then
+#'   sampling from the distribution of the model parameters, a procedure known
+#'   as the "method of composition" (Tanner 1996, 52; Treier and Jackman 2008).
 #'  
 #' @param data A data frame containing multiple samples from the
 #'   measurement-error distribution of one or more variables.
 #' @param model A fitted model object, from a model previously estimated (e.g.,
 #'   on the whole dataset or one sample).
-#' @param iter_var The name of the variable in \code{data} that identifies different
-#'   samples.
-#' @param iter_values Optionally, a vector of unique values of iteration variable
-#'   \code{iter_var}, to which \code{data} will be subset.
+#' @param iter_var The name of the variable in \code{data} that identifies
+#'   different samples.
+#' @param iter_values Optionally, a vector of unique values of iteration
+#'   variable \code{iter_var}, to which \code{data} will be subset.
 #' @param vc_fun A function for extracting the variance-covariance matrix of the
 #'   the parameters estimated by \code{model}.
+#' @param rsq Logical: Calculate the R-squared?
+#' @param prog_int Progress bar interval
+#'
 #' @return Samples from distribution of model parameters.
+#'
 #' @references 
 #' 
 #' Tanner, Martin A. 1996. \emph{Tools for Statistical Inference Methods for the
@@ -26,7 +30,9 @@
 #' \emph{American Journal of Political Science} 52 (1): 201–217.
 #' 
 #' @author Devin Caughey
-#' @import MASS
+#' 
+#' @import MASS MBESS
+#' 
 #' @examples
 #' ### Randomly Generated Data
 #' set.seed(1)
@@ -84,37 +90,51 @@
 #' }
 #' }
 propagate <- function (data, model, iter_var = "iteration", iter_values = NULL,
-                       vc_fun = stats::vcov) {
-  stopifnot(is.data.frame(data))
-  stopifnot(inherits(model, "lm"))
-  stopifnot(is.character(iter_var))
-  stopifnot(iter_var %in% names(data))
-  stopifnot(is.function(vc_fun))
+                       vc_fun = stats::vcov, rsq = TRUE, prog_int = 50) {
+    stopifnot(is.data.frame(data))
+    stopifnot(inherits(model, "lm"))
+    stopifnot(is.character(iter_var))
+    stopifnot(iter_var %in% names(data))
+    stopifnot(is.function(vc_fun))
 
-  if (!length(iter_values)) {
-    iter_values <- sort(unique(data[, iter_var]))
-  }
+    if (!length(iter_values)) {
+        iter_values <- sort(unique(data[, iter_var]))
+    }
 
-  tildeB <- as.data.frame(matrix(nrow = length(iter_values), ncol =
-      length(coef(model))))
-  
-  ## In each iteration...
-  for (s in seq_along(iter_values)) {
-    ## (1) Sample from p(X)
-    data_s <- data[which(data[, iter_var] == iter_values[s]), ]
+    S <- length(iter_values)
+    K <- length(coef(model)) - 1
+    N <- model$df.residual + K + 1
+
+    tildeB <- as.data.frame(matrix(nrow = S, ncol = K + 1))
+    R2 <- numeric(S)
     
-    ## (2) Sample from p(B|X_s):
-    ##     (a) Estimate B_s and Cov(B_s) conditional on X_s.
-    mod_s <- update(model, data = data_s)
-    hatB_s <- coef(mod_s)
-    hatV_s <- vc_fun(mod_s)
-    
-    ##     (b) Sample \tilde{B_s} from MV(\hat{B_s}, \hat{Cov(B_s)}).
-    tildeB[s, ] <- MASS::mvrnorm(n = 1, mu = hatB_s, Sigma = hatV_s)
-  }
-  model_names <- names(coef(model))
-  stopifnot(length(model_names) == ncol(tildeB))
-  names(tildeB) <- model_names
-  ## samples from p(B), intergrating over p(X)
-  return(tildeB)
+    ## In each iteration...
+    for (s in 1:S) {
+        if (!s %% prog_int) cat(s, "/", S, " | ", sep = "") 
+        ## (1) Sample from p(X)
+        data_s <- data[which(data[, iter_var] == iter_values[s]), ]
+        
+        ## (2) Sample from p(B|X_s):
+        ##     (a) Estimate B_s and Cov(B_s) conditional on X_s.
+        mod_s <- update(model, data = data_s)
+        hatB_s <- coef(mod_s)
+        hatV_s <- vc_fun(mod_s)
+        
+        ##     (b) Sample \tilde{B_s} from MV(\hat{B_s}, \hat{Cov(B_s)}).
+        tildeB[s, ] <- MASS::mvrnorm(n = 1, mu = hatB_s, Sigma = hatV_s)
+        if (rsq) {
+            ## NB: Does not take into account dependence between B and R2
+            R2[s] <- MBESS::ci.R2(R2 = summary(mod_s)$r.squared,
+                                  N = N, K = K, alpha.lower = runif(1),
+                                  alpha.upper = 0)$Lower.Conf.Limit.R2
+        }
+    }
+    model_names <- names(coef(model))
+    stopifnot(length(model_names) == ncol(tildeB))
+    names(tildeB) <- model_names
+    ## Return samples from p(B), intergrating over p(X)
+    out <- list(beta = tildeB)
+    if (rsq) out$rsq <- R2
+    cat("\n")
+    return(out)
 }
