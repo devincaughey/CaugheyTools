@@ -1,3 +1,5 @@
+#' @export
+#' 
 name_file <- function (pre = NULL, post = NULL, ext = NULL, dir = ".",
                        replace = FALSE) {
     p <- paste(pre, collapse = "")

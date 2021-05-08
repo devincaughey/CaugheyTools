@@ -1,5 +1,7 @@
 #' Draw from the sampling distribution of the correlation coefficient
 #' 
+#' @export
+#' 
 sample_corr <- function (hat_r, sample_size, n_draws) {
     hat_z <- r2z(hat_r)
     se <- sqrt(1/(sample_size - 3))

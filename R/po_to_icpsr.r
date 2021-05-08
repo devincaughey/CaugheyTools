@@ -1,4 +1,6 @@
-po_to_icpsr <- function (po_abbr, dta = CaugheyTools::states,
+#' @export
+#' 
+po_to_icpsr <- function (po_abbr, dta = CaugheyTools:::states,
                          ipums = FALSE) {
     po_abbr <- as.character(po_abbr)
     icpsr_codes <- dta$ICPSRCode[match(po_abbr, dta$POAbrv)]

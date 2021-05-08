@@ -1,3 +1,5 @@
+#' @export
+#' 
 interval_to_range <- function (x) {
     xx <- stringr::str_split(x, ",")
     xx1 <- sapply(xx, function (yy) yy[1])

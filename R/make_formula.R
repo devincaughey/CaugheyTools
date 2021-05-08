@@ -1,3 +1,5 @@
+#' @export
+#' 
 make_formula <- function (var_list) {
     form_char_vec <- vector("character", length(var_list))
     for (l in seq_along(var_list)) {

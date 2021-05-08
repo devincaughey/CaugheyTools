@@ -1,3 +1,5 @@
+#' @export
+#' 
 list_latest <- function (str = ".*", dir = ".", ext = ".*") {
     all_files <- list.files(dir)
     matching_files <- all_files[grepl(str, all_files) & grepl(ext, all_files)]

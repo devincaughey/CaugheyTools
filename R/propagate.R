@@ -20,6 +20,8 @@
 #'
 #' @return Samples from distribution of model parameters.
 #'
+#' @export
+#' 
 #' @references 
 #' 
 #' Tanner, Martin A. 1996. \emph{Tools for Statistical Inference Methods for the
